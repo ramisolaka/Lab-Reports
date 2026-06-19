@@ -1,36 +1,33 @@
 # CyberDefenders REvil Walkthrough
 
-This walkthrough is written in a simple step-by-step format so beginners can follow the investigation without getting lost.
+## Overview
 
-## Lab Info
+This lab focuses on investigating a REvil ransomware infection using Splunk and threat intelligence tools. The goal is to trace the ransomware from the ransom note back to the executable, identify the actions it took on the system, and collect useful indicators of compromise.
 
-- Platform: CyberDefenders
-- Lab: REvil
-- Focus: Ransomware investigation with Splunk and threat intelligence
+## Scenario
 
-## Tools Used
+In this investigation, we are working through evidence linked to a ransomware incident. We need to identify the ransom note, trace the process behind it, locate the malware, and collect key indicators such as the deletion command, file hash, and attacker infrastructure.
 
-- Splunk
-- CyberChef
-- VirusTotal
-- ANY.RUN
+## Skills Demonstrated
 
-## Questions Covered
+- Splunk log analysis
+- File creation investigation
+- Process tracing
+- PowerShell command review
+- Base64 decoding with CyberChef
+- Malware hash validation
+- Threat intelligence correlation
+- IOC identification
 
-1. Find the ransom note filename.
-2. Identify the ransomware process ID.
-3. Find the executable path.
-4. Identify the recovery-disruption command.
-5. Extract the SHA256 hash.
-6. Find the ransomware onion domain.
+## Walkthrough
 
-## Question 1
+### Question 1
 
-### Question
+#### Objective
 
-To begin your investigation, can you identify the filename of the note that the ransomware left behind?
+Find the filename of the ransom note dropped by the malware.
 
-### Splunk Query
+#### Query
 
 ```spl
 index=revil event.code=11
@@ -38,29 +35,29 @@ index=revil event.code=11
 | table time winlog.event_data.TargetFilename winlog.event_data.ProcessId winlog.event_data.User
 ```
 
-### Screenshot
+#### Evidence
 
 ![Question 1 search](images/q1-ransom-note-search.png)
 
-### How to solve it
+#### What to look for
 
-Look at the `TargetFilename` field and focus on files created inside `Downloads` folders. A ransom note often gets copied to multiple user locations.
+Review the `TargetFilename` field and look for a text file created in multiple `Downloads` folders.
 
-### Answer
+#### Answer
 
 `5uizv5660t-readme.txt`
 
-### Why this is correct
+#### Why it matters
 
-The same text file appears in several `Downloads` folders, which strongly shows that this is the ransom note dropped by the malware.
+Ransomware commonly drops a ransom note in user-accessible folders. Finding this file gives us an early indicator of compromise and helps us link later events back to the same attack.
 
-## Question 2
+### Question 2
 
-### Question
+#### Objective
 
-After identifying the ransom note, the next step is to pinpoint the source. What's the process ID of the ransomware that's likely involved?
+Identify the process ID responsible for creating the ransom note.
 
-### Splunk Query
+#### Query
 
 ```spl
 index=revil event.code=11
@@ -68,29 +65,29 @@ index=revil event.code=11
 | table time winlog.event_data.TargetFilename winlog.event_data.ProcessId winlog.event_data.User
 ```
 
-### Screenshot
+#### Evidence
 
 ![Question 2 search](images/q2-process-id-search.png)
 
-### How to solve it
+#### What to look for
 
-Use the same results from Question 1. This time, check the `ProcessId` field beside the ransom note creation events.
+Check the `ProcessId` value that appears next to the ransom note creation events.
 
-### Answer
+#### Answer
 
 `5348`
 
-### Why this is correct
+#### Why it matters
 
-All of the ransom note creation events point to process ID `5348`, so that is the process linked to the ransomware activity.
+Once we know the process ID, we can pivot into process creation events and trace the malware back to its source executable.
 
-## Question 3
+### Question 3
 
-### Question
+#### Objective
 
-Having determined the ransomware's process ID, the next logical step is to locate its origin. Where can we find the ransomware's executable file?
+Locate the ransomware executable on disk.
 
-### Splunk Query
+#### Query
 
 ```spl
 index=revil event.code=1
@@ -98,29 +95,29 @@ index=revil event.code=1
 | table time winlog.event_data.ParentImage winlog.event_data.Image winlog.event_data.ProcessId
 ```
 
-### Screenshot
+#### Evidence
 
 ![Question 3 search](images/q3-executable-path-search.png)
 
-### How to solve it
+#### What to look for
 
-Check the `Image` field for suspicious executables launched from the `Downloads` folder.
+Focus on the `Image` field and look for a suspicious executable launched from the `Downloads` folder.
 
-### Answer
+#### Answer
 
 `C:\Users\Administrator\Downloads\facebook assistant.exe`
 
-### Why this is correct
+#### Why it matters
 
-The `Image` field shows the full path of the executable that ran from `Downloads`, which is the ransomware sample.
+This tells us exactly where the ransomware was executed from. That path can be used for scoping, containment, and future detections.
 
-## Question 4
+### Question 4
 
-### Question
+#### Objective
 
-Now that you've pinpointed the ransomware's executable location, let's dig deeper. It's a common tactic for ransomware to disrupt system recovery methods. Can you identify the command that was used for this purpose?
+Identify the command the ransomware used to interfere with recovery.
 
-### Splunk Query
+#### Query
 
 ```spl
 index=revil event.code=1
@@ -128,33 +125,33 @@ index=revil event.code=1
 | table time winlog.event_data.ParentImage winlog.event_data.Image winlog.event_data.ProcessId winlog.event_data.ParentCommandLine winlog.event_data.CommandLine
 ```
 
-### Screenshots
+#### Evidence
 
 ![Question 4 search](images/q4-encoded-command-search.png)
 
 ![Question 4 CyberChef decode](images/q4-cyberchef-decode.png)
 
-### How to solve it
+#### What to look for
 
-Look for encoded PowerShell in the `CommandLine` field. The `-e` switch suggests base64-encoded content. Copy the encoded string into CyberChef, decode it with `From Base64`, and then decode the text as `UTF-16LE`.
+Look for PowerShell launched with the `-e` switch, which suggests an encoded command. Copy the encoded value into CyberChef, decode it with `From Base64`, and then decode the text as `UTF-16LE`.
 
-### Answer
+#### Answer
 
 ```powershell
 Get-WmiObject Win32_Shadowcopy | ForEach-Object {$_.Delete();}
 ```
 
-### Why this is correct
+#### Why it matters
 
-This command deletes Windows Volume Shadow Copies. Ransomware uses this to make file recovery much harder.
+This command deletes Volume Shadow Copies, which removes an easy recovery option for the victim. This is a common ransomware tactic.
 
-## Question 5
+### Question 5
 
-### Question
+#### Objective
 
-As we trace the ransomware's steps, a deeper verification is needed. Can you provide the sha256 hash of the ransomware's executable to cross-check with known malicious signatures?
+Extract the SHA256 hash of the ransomware executable.
 
-### Splunk Query
+#### Query
 
 ```spl
 index=revil event.code=1 "facebook assistant.exe"
@@ -162,49 +159,57 @@ index=revil event.code=1 "facebook assistant.exe"
 | dedup winlog.event_data.Hashes
 ```
 
-### Screenshots
+#### Evidence
 
 ![Question 5 hash search](images/q5-hash-search.png)
 
 ![Question 5 VirusTotal check](images/q5-virustotal-check.png)
 
-### How to solve it
+#### What to look for
 
-Search for the executable name and inspect the `Hashes` field. Copy the `SHA256` value and verify it in VirusTotal to confirm that it matches known malicious activity.
+Find the `SHA256` value in the `Hashes` field, then verify it in VirusTotal or another threat intel source.
 
-### Answer
+#### Answer
 
 `b8d7fb4488c0556385498271ab9fffdf0eb38bb2a330265d9852e3a6288092aa`
 
-### Why this is correct
+#### Why it matters
 
-This hash appears in the Splunk event data and also matches the sample checked in VirusTotal.
+The SHA256 hash lets defenders match the sample against known detections, threat intel, blocklists, and malware databases.
 
-## Question 6
+### Question 6
 
-### Question
+#### Objective
 
-One crucial piece remains: identifying the attacker's communication channel. Can you leverage threat intelligence and known Indicators of Compromise (IoCs) to pinpoint the ransomware author's onion domain?
+Identify the ransomware operator's onion domain.
 
-### Threat Intel Check
+#### Threat Intel Method
 
-Use the sample or its hash in a sandbox or threat-intelligence platform and review network and DNS activity.
+Use the sample or its hash in a sandbox or threat intelligence tool and inspect network and DNS activity.
 
-### Screenshot
+#### Evidence
 
 ![Question 6 ANY.RUN DNS activity](images/q6-onion-domain-anyrun.png)
 
-### How to solve it
+#### What to look for
 
-Review the DNS or network activity and look for suspicious `.onion` domains. These are often linked to ransomware operator portals or payment infrastructure.
+Look for suspicious `.onion` domains in DNS or network activity tied to the sample.
 
-### Answer
+#### Answer
 
 `aplebzu47wgazapdqks6vrcv6zcnjppkbxbr6wketr56nf6aq2nmyoyd.onion`
 
-### Why this is correct
+#### Why it matters
 
-The sandbox DNS results show a Tor hidden service domain, which is consistent with ransomware infrastructure.
+Hidden service domains are often used by ransomware operators for payment portals, negotiation, or backend infrastructure.
+
+## Analyst Notes
+
+- The investigation starts with a simple artifact, the ransom note, and then pivots into process and execution data.
+- The process ID made it possible to move from file creation activity to the malware's executable path.
+- The encoded PowerShell command confirmed that the attacker attempted to delete shadow copies, which is consistent with ransomware behavior.
+- The SHA256 hash gave a strong pivot into external intelligence sources and confirmed the sample as malicious.
+- The onion domain provided attacker infrastructure that could be used for threat hunting and IOC enrichment.
 
 ## Final Answers
 
@@ -216,3 +221,11 @@ The sandbox DNS results show a Tor hidden service domain, which is consistent wi
 | Recovery disruption command | `Get-WmiObject Win32_Shadowcopy \| ForEach-Object {$_.Delete();}` |
 | SHA256 hash | `b8d7fb4488c0556385498271ab9fffdf0eb38bb2a330265d9852e3a6288092aa` |
 | Onion domain | `aplebzu47wgazapdqks6vrcv6zcnjppkbxbr6wketr56nf6aq2nmyoyd.onion` |
+
+## Key Takeaways
+
+- Start with the most visible artifact and pivot from there.
+- Process IDs are useful for linking file activity to execution events.
+- Encoded PowerShell should always be investigated carefully.
+- Hashes and infrastructure indicators help connect local evidence to external threat intelligence.
+- A simple and documented workflow makes both investigation and reporting much easier.
