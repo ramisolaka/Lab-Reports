@@ -72,7 +72,7 @@ index=revil event.code=11
 
 **Evidence**
 
-![Question 1 search](REvil/images/q1-ransom-note-search.png)
+![Question 1 search](images/q1-ransom-note-search.png)
 
 **Answer**
 
