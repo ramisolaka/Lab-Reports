@@ -1,10 +1,6 @@
-# Incident — Labs Portfolio
+# CyberDefenders Walkthroughs
 
-This repository collects DFIR / malware lab walkthroughs and detection work.
+My original walkthroughs, investigation notes, and detections based on CyberDefenders labs.
 
-Current labs
-- 01 — REvil Ransomware (Splunk, Sysmon) — Investigation + Sigma & Splunk detections → ./REvil/
-
-Repository files
-- labs/ — (future) recommended location for multiple lab folders
-- README.md — this index page
+## Current Labs
+- REvil Ransomware (Splunk, Sysmon) — Investigation + Sigma & Splunk detections
