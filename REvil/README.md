@@ -3,7 +3,7 @@
 ⚠️ Safety disclaimer
 This repository contains analysis and findings from a simulated REvil ransomware incident. No live malware binaries are included. Do not execute suspicious files on production systems — perform analysis in isolated lab environments (air-gapped VMs or sandbox services).
 
-### Attribution note
+Attribution note
 This walkthrough contains my original analysis and notes based on the CyberDefenders REvil lab. CyberDefenders owns the underlying lab content and platform materials. This write-up is shared for educational and portfolio purposes.
 
 
